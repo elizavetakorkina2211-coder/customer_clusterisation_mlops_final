@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Предсказания{% endblock %}
+{% block content %}
+  <div class="card">
+    <h1>Последние предсказания</h1>
+    <form method="post" action="/ui/predictions/clear" style="margin:0 0 1rem;" onsubmit="return confirm('Удалить все сохранённые предсказания?');">
+      <button type="submit" class="secondary">Очистить историю</button>
+    </form>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Запись (UTC)</th>
+            <th>Время события</th>
+            <th>Класс</th>
+            <th>Флаги</th>
+            <th>Признаки</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.created_at }}</td>
+            <td><code>{% if r.payload and 'event_ts' in r.payload %}{{ r.payload['event_ts'] }}{% else %}—{% endif %}</code></td>
+            <td><strong>{{ r.prediction }}</strong></td>
+            <td class="flag" style="max-width:320px;font-size:0.8rem;line-height:1.35;">
+              {% if r.anomaly_flags and r.anomaly_flags|length %}
+                {% for f in r.anomaly_flags %}<div style="margin:0.12rem 0;">{{ f }}</div>{% endfor %}
+              {% else %}—{% endif %}
+            </td>
+            <td style="font-size:0.8rem;line-height:1.45;max-width:22rem;">
+              {% if r.payload %}
+                {% for key, val in r.payload|dictsort %}
+                  {% if key != 'segment_truth' %}
+                  <div><span style="color:var(--muted)">{{ key | feature_ru }}</span>:
+                    {% if val is string %}{{ val | payload_value_ru(key) }}{% else %}{{ val }}{% endif %}
+                  </div>
+                  {% endif %}
+                {% endfor %}
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="color:var(--muted);">Пока нет записей. Сделайте предсказание на странице «Пользователь».</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

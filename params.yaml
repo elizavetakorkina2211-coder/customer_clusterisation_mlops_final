@@ -1,0 +1,32 @@
+train:
+  test_size: 0.2
+  random_state: 22
+  # HistGradientBoosting: сбалансированные классы в синтетике + сильнее модель
+  max_iter: 900
+  max_depth: 24
+  learning_rate: 0.028
+  l2_regularization: 0.08
+  min_samples_leaf: 4
+
+drift:
+  # Дрейф данных: PSI и KS против реального train CSV; флаг только если оба превышены
+  psi_threshold: 0.28
+  ks_alpha: 0.005
+  # Доля «самых поздних» записей по event_ts для сравнения с более ранними
+  recent_fraction: 0.25
+  time_psi_threshold: 0.38
+  # Временной дрейф: не считать при малом батче (шум PSI на 10–50 строках давал лавину флагов)
+  temporal_min_total_rows: 120
+  temporal_min_bucket_rows: 40
+  # Как data drift: флаг только если и PSI, и KS указывают на сдвиг ранние vs поздние
+  time_ks_alpha: 0.005
+  # L1 между долями предсказанных классов и target_dist из эталона
+  concept_l1_threshold: 0.36
+  # Автопереобучение при числе флагов дрейфа >= N (0 — выключено)
+  auto_retrain_min_flags: 0
+
+# Флаги в таблице предсказаний (сравнение с reference_profile.json)
+prediction_row_flags:
+  zscore_threshold: 3.0
+  min_top_proba: 0.45
+  rare_category_max_p: 0.03

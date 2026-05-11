@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Эксперименты MLflow{% endblock %}
+{% block content %}
+  <div class="card">
+    <h1>Эксперименты (MLflow)</h1>
+    <style>
+      .exp-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+      .exp-table th, .exp-table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid #2a3545; vertical-align: top; }
+      .exp-table th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+      .exp-kv { line-height: 1.45; }
+      .exp-kv div { margin-bottom: 0.35rem; }
+      .exp-kv .k { color: var(--muted); display: inline-block; min-width: 11rem; }
+      .exp-kv .v { color: var(--text); font-weight: 600; }
+      .exp-status-ok { color: #3dd6c6; }
+      .exp-status-bad { color: #ff8a8a; }
+      .exp-status-run { color: #f0b429; }
+    </style>
+    <div style="overflow-x:auto;">
+      <table class="exp-table">
+        <thead>
+          <tr>
+            <th>ID запуска</th>
+            <th>Статус</th>
+            <th>Начало (UTC)</th>
+            <th>Метрики качества</th>
+            <th>Параметры обучения</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in runs %}
+          <tr>
+            <td><code title="{{ row.run_id }}">{{ row.run_id_short }}</code></td>
+            <td>
+              {% if row.status == 'FINISHED' %}
+                <span class="exp-status-ok">{{ row.status_ru }}</span>
+              {% elif row.status == 'FAILED' or row.status == 'KILLED' %}
+                <span class="exp-status-bad">{{ row.status_ru }}</span>
+              {% elif row.status == 'RUNNING' %}
+                <span class="exp-status-run">{{ row.status_ru }}</span>
+              {% else %}
+                {{ row.status_ru }}
+              {% endif %}
+            </td>
+            <td style="color:var(--muted);white-space:nowrap;">{{ row.started }}</td>
+            <td class="exp-kv">
+              {% if row.metrics_items %}
+                {% for label, val in row.metrics_items %}
+                  <div><span class="k">{{ label }}</span> <span class="v">{{ val }}</span></div>
+                {% endfor %}
+              {% else %}
+                <span style="color:var(--muted);">—</span>
+              {% endif %}
+            </td>
+            <td class="exp-kv">
+              {% if row.params_items %}
+                {% for label, val in row.params_items %}
+                  <div><span class="k">{{ label }}</span> <span class="v">{{ val }}</span></div>
+                {% endfor %}
+              {% else %}
+                <span style="color:var(--muted);">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="color:var(--muted);">Нет запусков. Выполните обучение: <code>dvc repro train</code> или кнопку переобучения на главной.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

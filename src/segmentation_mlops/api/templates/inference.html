@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+{% block title %}Пользователь{% endblock %}
+{% block content %}
+  <div class="card">
+    <h1>Пользователь</h1>
+    <p style="color:var(--muted);">Заполните признаки пользователя и отправьте запрос в модель.</p>
+    <form id="infer-form" class="grid">
+      <div><label>{{ 'days_since_last_order' | feature_title_ru }}</label><input name="days_since_last_order" type="number" step="0.1" value="30" required/></div>
+      <div><label>{{ 'sessions_last_month' | feature_title_ru }}</label><input name="sessions_last_month" type="number" step="0.1" value="5" required/></div>
+      <div><label>{{ 'avg_basket_size' | feature_title_ru }}</label><input name="avg_basket_size" type="number" step="0.1" value="3.5" required/></div>
+      <div><label>{{ 'category_diversity' | feature_title_ru }}</label><input name="category_diversity" type="number" step="0.1" value="4" required/></div>
+      <div><label>{{ 'discount_share' | feature_title_ru }}</label><input name="discount_share" type="number" step="0.01" value="0.1" required/></div>
+      <div><label>{{ 'returns_rate' | feature_title_ru }}</label><input name="returns_rate" type="number" step="0.01" value="0.05" required/></div>
+      <div><label>{{ 'avg_session_minutes' | feature_title_ru }}</label><input name="avg_session_minutes" type="number" step="0.1" value="12" required/></div>
+      <div><label>{{ 'device_type' | feature_title_ru }}</label>
+        <select name="device_type">
+          <option value="mobile">Мобильное</option>
+          <option value="desktop">Десктоп</option>
+          <option value="tablet">Планшет</option>
+        </select>
+      </div>
+      <div><label>{{ 'platform' | feature_title_ru }}</label>
+        <select name="platform">
+          <option value="ios">iOS</option>
+          <option value="android">Android</option>
+          <option value="web">Веб</option>
+        </select>
+      </div>
+      <div><label>{{ 'marketing_channel' | feature_title_ru }}</label>
+        <select name="marketing_channel">
+          <option value="organic">Органика</option>
+          <option value="paid_search">Контекстная реклама</option>
+          <option value="social">Соцсети</option>
+          <option value="email">E-mail</option>
+        </select>
+      </div>
+      <div><label>{{ 'region' | feature_title_ru }}</label>
+        <select name="region">
+          <option value="EU">ЕС</option>
+          <option value="US">США</option>
+          <option value="APAC">Азиатско-Тихоокеанский регион</option>
+          <option value="Unknown">Не указан</option>
+        </select>
+      </div>
+      <div style="grid-column: 1 / -1;">
+        <label>{{ 'event_ts' | feature_title_ru }} <span style="color:var(--muted);font-weight:400;">(опционально, для дрейфа по времени)</span></label>
+        <input name="event_ts" type="datetime-local" />
+        <span style="color:var(--muted); font-size:0.8rem;">Пусто — подставится текущее UTC на сервере</span>
+      </div>
+    </form>
+    <p style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
+      <button type="button" id="send">Предсказать</button>
+      <button type="button" id="batch10" class="secondary">Нагенерить 10 новых пользователей</button>
+      <button type="button" id="batch50" class="secondary">Нагенерить 50 новых пользователей</button>
+      <span id="batch-status" style="color:var(--muted);font-size:0.9rem;"></span>
+    </p>
+    <div id="batch-class-stats" style="display:none;margin-top:1rem;padding:1rem 1.25rem;border:1px solid #2a3545;border-radius:12px;background:#121a24;">
+      <h2 id="batch-class-stats-title" style="font-size:1rem;margin:0 0 0.75rem;color:var(--accent);">Статистика по классам</h2>
+      <div id="batch-class-stats-body" style="font-size:0.9rem;"></div>
+    </div>
+
+    <div id="pred-error" class="infer-error" hidden></div>
+
+    <div id="pred-result" class="infer-result" style="margin-top:1rem;display:none;padding:1.25rem 1.5rem;border:1px solid #2a3545;border-radius:12px;background:#121a24;">
+      <h2 style="font-size:1.1rem;margin:0 0 0.75rem;color:var(--accent);">Результат</h2>
+      <p style="margin:0 0 1rem;font-size:1.15rem;">
+        Предсказанный сегмент: <strong id="pred-label"></strong>
+        <span style="color:var(--muted);font-size:0.85rem;" id="pred-code"></span>
+      </p>
+      <p style="margin:1rem 0 0;font-size:0.9rem;color:var(--muted);">
+        Запись сохранена под номером <strong id="pred-id" style="color:var(--text);"></strong>
+        <div id="pred-flags-wrap" style="display:none;margin-top:0.75rem;">
+          <span style="color:var(--muted);font-size:0.85rem;">Флаги:</span>
+          <div id="pred-flags" class="flag" style="margin-top:0.25rem;font-size:0.88rem;white-space:pre-wrap;line-height:1.4;"></div>
+        </div>
+      </p>
+      <details style="margin-top:1rem;color:var(--muted);font-size:0.85rem;">
+        <summary style="cursor:pointer;color:var(--accent);">Ответ API (JSON)</summary>
+        <pre id="pred-raw" style="margin-top:0.5rem;background:#0b1118;padding:0.75rem;border-radius:8px;overflow:auto;font-size:0.75rem;"></pre>
+      </details>
+    </div>
+  </div>
+  <script type="application/json" id="user-sampling-json">{{ user_sampling | tojson }}</script>
+  <style>
+    .infer-error {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      background: #2a1515;
+      border: 1px solid var(--danger);
+      color: #ffb4b4;
+    }
+  </style>
+  <script>
+    const SEGMENT_RU = {
+      whales: 'Киты',
+      loyal: 'Лояльные',
+      casual: 'Обычные',
+    };
+
+    function parseSamplingCfg() {
+      const el = document.getElementById('user-sampling-json');
+      if (!el) return {};
+      try {
+        return JSON.parse(el.textContent);
+      } catch (e) {
+        return {};
+      }
+    }
+    const SAMPLE_CFG = parseSamplingCfg();
+
+    function randomChoice(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+    function roundN(x, n) {
+      const m = 10 ** n;
+      return Math.round(x * m) / m;
+    }
+    /** Сэмпл внутри [lo, hi] с упором к середине (среднее двух U(0,1) — типичные значения, не края). */
+    function sampleNormRange(lo, hi) {
+      if (lo == null || hi == null) return lo ?? 0;
+      if (!(hi > lo)) return lo;
+      const u = (Math.random() + Math.random()) / 2;
+      return lo + u * (hi - lo);
+    }
+    function pickWeighted(opts) {
+      if (!opts || !opts.length) return null;
+      let t = 0;
+      for (let i = 0; i < opts.length; i++) t += opts[i].p;
+      if (t <= 0) return opts[0].v;
+      let r = Math.random() * t;
+      for (let i = 0; i < opts.length; i++) {
+        r -= opts[i].p;
+        if (r <= 0) return opts[i].v;
+      }
+      return opts[opts.length - 1].v;
+    }
+    const FALLBACK_NUMERIC = {
+      days_since_last_order: { lo: 15, hi: 90 },
+      sessions_last_month: { lo: 2, hi: 12 },
+      avg_basket_size: { lo: 1.5, hi: 8 },
+      category_diversity: { lo: 2, hi: 9 },
+      discount_share: { lo: 0.05, hi: 0.35 },
+      returns_rate: { lo: 0.02, hi: 0.22 },
+      avg_session_minutes: { lo: 8, hi: 45 },
+    };
+    function randomEventIso(cfg) {
+      const e = cfg && cfg.event_ts;
+      if (e && e.iso_min && e.iso_max) {
+        const lo = new Date(e.iso_min).getTime();
+        const hi = new Date(e.iso_max).getTime();
+        if (hi > lo) {
+          const u = (Math.random() + Math.random()) / 2;
+          return new Date(lo + u * (hi - lo)).toISOString();
+        }
+      }
+      const span = 90 * 24 * 3600 * 1000;
+      return new Date(Date.now() - Math.random() * span).toISOString();
+    }
+    /** Лёгкий шум внутри маргинальных квантилей — не ломает совместность строки из выборки. */
+    function jitterJointRow(row, cfg) {
+      const n = cfg && cfg.numeric;
+      if (!n) return { ...row };
+      const out = { ...row };
+      const jit = (key, dec, clip01, minV) => {
+        if (out[key] == null || !Number.isFinite(Number(out[key]))) return;
+        const b = n[key];
+        if (!b) return;
+        let x = Number(out[key]);
+        const span = Math.max(b.hi - b.lo, 1e-9);
+        const noise = ((Math.random() + Math.random() + Math.random()) / 3 - 0.5) * 2 * 0.08 * span;
+        x = x + noise;
+        x = Math.min(b.hi, Math.max(b.lo, x));
+        if (clip01) x = Math.min(1, Math.max(0, x));
+        if (minV != null) x = Math.max(minV, x);
+        out[key] = roundN(x, dec);
+      };
+      jit('days_since_last_order', 1, false, 1);
+      jit('sessions_last_month', 1, false, 0.5);
+      jit('avg_basket_size', 1, false, 0.3);
+      jit('category_diversity', 1, false, 1);
+      jit('discount_share', 2, true, null);
+      jit('returns_rate', 2, true, null);
+      jit('avg_session_minutes', 1, false, 0.5);
+      return out;
+    }
+    /** Запасной режим: независимые маргинали (даёт нереалистичные пары признаков → чаще киты/лояльные). */
+    function randomUserPayloadMarginal(cfg) {
+      const num = (name, dec, clip01) => {
+        const b = cfg && cfg.numeric && cfg.numeric[name];
+        const fb = FALLBACK_NUMERIC[name] || { lo: 0, hi: 1 };
+        const lo = b && b.lo != null ? b.lo : fb.lo;
+        const hi = b && b.hi != null ? b.hi : fb.hi;
+        let x = sampleNormRange(lo, hi);
+        if (clip01) x = Math.min(1, Math.max(0, x));
+        return roundN(x, dec);
+      };
+      const catPick = (name, fallbackArr) => {
+        const v = pickWeighted(cfg && cfg.categorical ? cfg.categorical[name] : null);
+        return v || randomChoice(fallbackArr);
+      };
+      return {
+        days_since_last_order: num('days_since_last_order', 1, false),
+        sessions_last_month: Math.max(0.5, num('sessions_last_month', 1, false)),
+        avg_basket_size: Math.max(0.3, num('avg_basket_size', 1, false)),
+        category_diversity: Math.max(1, num('category_diversity', 1, false)),
+        discount_share: num('discount_share', 2, true),
+        returns_rate: num('returns_rate', 2, true),
+        avg_session_minutes: Math.max(0.5, num('avg_session_minutes', 1, false)),
+        device_type: catPick('device_type', ['mobile', 'desktop', 'tablet']),
+        platform: catPick('platform', ['ios', 'android', 'web']),
+        marketing_channel: catPick('marketing_channel', ['organic', 'paid_search', 'social', 'email']),
+        region: catPick('region', ['EU', 'US', 'APAC', 'Unknown']),
+        event_ts: randomEventIso(cfg),
+      };
+    }
+    /** Строка из полного CSV на сервере; при ошибке — маргинали по квантилям. */
+    async function fetchRandomUserPayload() {
+      const cfg = SAMPLE_CFG;
+      try {
+        const r = await fetch('/api/v1/sampling/random-csv-row', { cache: 'no-store' });
+        if (!r.ok) throw new Error('csv');
+        const base = await r.json();
+        if (!base || base.days_since_last_order == null) throw new Error('bad');
+        const row = { ...base };
+        if (!row.event_ts) row.event_ts = randomEventIso(cfg);
+        return jitterJointRow(row, cfg);
+      } catch (e) {
+        return randomUserPayloadMarginal(cfg);
+      }
+    }
+    function isoToDatetimeLocal(iso) {
+      const d = new Date(iso);
+      const pad = (n) => String(n).padStart(2, '0');
+      return (
+        d.getFullYear() +
+        '-' +
+        pad(d.getMonth() + 1) +
+        '-' +
+        pad(d.getDate()) +
+        'T' +
+        pad(d.getHours()) +
+        ':' +
+        pad(d.getMinutes())
+      );
+    }
+    function applyPayloadToForm(form, p) {
+      const num = (name, val) => {
+        const el = form.querySelector('[name="' + name + '"]');
+        if (el && el.type === 'number') el.value = String(val);
+      };
+      num('days_since_last_order', p.days_since_last_order);
+      num('sessions_last_month', p.sessions_last_month);
+      num('avg_basket_size', p.avg_basket_size);
+      num('category_diversity', p.category_diversity);
+      num('discount_share', p.discount_share);
+      num('returns_rate', p.returns_rate);
+      num('avg_session_minutes', p.avg_session_minutes);
+      const sel = (name, val) => {
+        const el = form.querySelector('[name="' + name + '"]');
+        if (el && el.tagName === 'SELECT') el.value = val;
+      };
+      sel('device_type', p.device_type);
+      sel('platform', p.platform);
+      sel('marketing_channel', p.marketing_channel);
+      sel('region', p.region);
+      const ts = form.querySelector('[name="event_ts"]');
+      if (ts && p.event_ts) ts.value = isoToDatetimeLocal(p.event_ts);
+    }
+    function buildBodyFromForm(f) {
+      const fd = new FormData(f);
+      const body = {};
+      for (const [k, v] of fd.entries()) {
+        if (k === 'event_ts') {
+          if (v) body[k] = new Date(v).toISOString();
+          continue;
+        }
+        const el = f.querySelector('[name="' + k + '"]');
+        body[k] = el && el.type === 'number' ? Number(v) : v;
+      }
+      return body;
+    }
+
+    const f = document.getElementById('infer-form');
+    (async () => {
+      applyPayloadToForm(f, await fetchRandomUserPayload());
+    })();
+
+    document.getElementById('send').onclick = async () => {
+      const errEl = document.getElementById('pred-error');
+      const box = document.getElementById('pred-result');
+      errEl.hidden = true;
+      box.style.display = 'none';
+
+      const body = buildBodyFromForm(f);
+      const r = await fetch('/api/v1/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const rawText = await r.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (e) {
+        data = null;
+      }
+
+      if (!r.ok) {
+        const msg = data && data.detail ? data.detail : rawText || 'Ошибка запроса';
+        errEl.textContent = typeof msg === 'string' ? msg : JSON.stringify(msg);
+        errEl.hidden = false;
+        return;
+      }
+
+      const pred = data.prediction;
+      document.getElementById('pred-label').textContent = SEGMENT_RU[pred] || pred;
+      document.getElementById('pred-code').textContent = pred ? ' (' + pred + ')' : '';
+      document.getElementById('pred-id').textContent = data.prediction_id;
+
+      const flags = data.anomaly_flags || [];
+      const fw = document.getElementById('pred-flags-wrap');
+      if (flags.length) {
+        document.getElementById('pred-flags').textContent = flags.join('\n');
+        fw.style.display = 'block';
+      } else {
+        fw.style.display = 'none';
+      }
+
+      document.getElementById('pred-raw').textContent = JSON.stringify(data, null, 2);
+      box.style.display = 'block';
+
+      applyPayloadToForm(f, await fetchRandomUserPayload());
+    };
+
+    function renderBatchClassStats(counts, successCount, batchTotal) {
+      const wrap = document.getElementById('batch-class-stats');
+      const body = document.getElementById('batch-class-stats-body');
+      const titleEl = document.getElementById('batch-class-stats-title');
+      if (!wrap || !body) return;
+      if (!successCount) {
+        wrap.style.display = 'none';
+        body.innerHTML = '';
+        return;
+      }
+      if (titleEl && batchTotal) {
+        titleEl.textContent = 'Статистика по классам (' + batchTotal + ' запросов)';
+      }
+      wrap.style.display = 'block';
+      const keys = Object.keys(counts);
+      keys.sort((a, b) => counts[b] - counts[a]);
+      let rows = '';
+      for (const cls of keys) {
+        const n = counts[cls];
+        const p = ((n / successCount) * 100).toFixed(1).replace('.', ',') + '%';
+        const label = SEGMENT_RU[cls] || cls;
+        rows +=
+          '<tr><td style="padding:0.35rem 0.5rem 0.35rem 0;">' +
+          label +
+          '</td><td style="padding:0.35rem 0.5rem;text-align:right;">' +
+          n +
+          '</td><td style="padding:0.35rem 0;text-align:right;color:var(--muted);">' +
+          p +
+          '</td></tr>';
+      }
+      body.innerHTML =
+        '<table style="width:100%;max-width:24rem;border-collapse:collapse;"><thead><tr><th style="text-align:left;font-weight:600;padding:0 0.5rem 0.5rem 0;">Сегмент</th><th style="text-align:right;padding:0 0.5rem 0.5rem;">Штук</th><th style="text-align:right;padding:0 0 0.5rem;">Доля</th></tr></thead><tbody>' +
+        rows +
+        '</tbody></table>';
+    }
+
+    async function runBatchPredictions(total) {
+      const btnSend = document.getElementById('send');
+      const btn10 = document.getElementById('batch10');
+      const btn50 = document.getElementById('batch50');
+      const st = document.getElementById('batch-status');
+      const batchBtns = [btn10, btn50].filter((b) => b);
+      btnSend.disabled = true;
+      batchBtns.forEach((b) => {
+        b.disabled = true;
+      });
+      renderBatchClassStats({}, 0);
+      st.textContent = 'Отправка 0 / ' + total + '…';
+      let ok = 0;
+      let fail = 0;
+      const classCounts = {};
+      for (let i = 0; i < total; i++) {
+        st.textContent = 'Отправка ' + (i + 1) + ' / ' + total + '…';
+        const body = await fetchRandomUserPayload();
+        try {
+          const r = await fetch('/api/v1/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (r.ok) {
+            ok++;
+            let data;
+            try {
+              data = await r.json();
+            } catch (e) {
+              data = null;
+            }
+            const pred = data && data.prediction;
+            if (pred) classCounts[pred] = (classCounts[pred] || 0) + 1;
+          } else {
+            fail++;
+          }
+        } catch (e) {
+          fail++;
+        }
+      }
+      st.textContent = 'Готово: успешно ' + ok + ', ошибок ' + fail + '.';
+      renderBatchClassStats(classCounts, ok, total);
+      applyPayloadToForm(f, await fetchRandomUserPayload());
+      btnSend.disabled = false;
+      batchBtns.forEach((b) => {
+        b.disabled = false;
+      });
+    }
+
+    document.getElementById('batch10').onclick = () => runBatchPredictions(10);
+    document.getElementById('batch50').onclick = () => runBatchPredictions(50);
+  </script>
+{% endblock %}

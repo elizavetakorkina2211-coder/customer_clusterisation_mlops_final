@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Дрейф{% endblock %}
+{% block content %}
+  <div class="card">
+    <h1>Отчёты о дрейфе</h1>
+    {% if latest and latest.get('anomaly_flags') %}
+      <div class="notify">Текущие флаги: {{ latest.anomaly_flags | join(', ') }}</div>
+    {% endif %}
+    <h2 style="font-size:1rem; color:var(--muted);">Последний отчёт (summary)</h2>
+    <pre style="background:#0b1118;padding:1rem;border-radius:8px;overflow:auto;max-height:320px;">{{ latest | tojson(indent=2) }}</pre>
+  </div>
+{% endblock %}

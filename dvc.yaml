@@ -1,0 +1,24 @@
+stages:
+  prepare:
+    cmd: python -m segmentation_mlops.data.make_dataset
+    deps:
+      - src/segmentation_mlops/data/make_dataset.py
+      - src/segmentation_mlops/features/build_features.py
+    outs:
+      - data/raw/customers_raw.csv
+      - data/processed/reference_profile.json
+
+  train:
+    cmd: python -m segmentation_mlops.train.train_model
+    deps:
+      - data/raw/customers_raw.csv
+      - src/segmentation_mlops/train/train_model.py
+      - src/segmentation_mlops/features/build_features.py
+      - src/segmentation_mlops/metrics.py
+    params:
+      - params.yaml
+    outs:
+      - models/model.joblib
+    metrics:
+      - reports/metrics.json:
+          cache: false

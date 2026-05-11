@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{% block title %}MLOps Customer Segmentation{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7eef8;
+      --muted: #8b9bb4;
+      --accent: #3dd6c6;
+      --warn: #f0b429;
+      --danger: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1b2a38 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #2a3545;
+      background: rgba(15, 20, 25, 0.85);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      margin-right: 1rem;
+      font-size: 0.95rem;
+    }
+    nav a:hover { color: var(--accent); }
+    .header-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .header-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .header-authors {
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.35;
+      max-width: 22rem;
+    }
+    main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+    .card {
+      background: var(--panel);
+      border: 1px solid #2a3545;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 0.5rem; letter-spacing: 0.02em; }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: #243044;
+      color: var(--accent);
+    }
+    button, .btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 0.55rem 1rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #2ad4c2, #1fa3c4);
+      color: #041016;
+    }
+    button.secondary { background: #2f3d52; color: var(--text); }
+    button.warn { background: linear-gradient(135deg, #f0b429, #d98e04); color: #1a1203; }
+    input, select {
+      width: 100%;
+      padding: 0.45rem 0.55rem;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #0b1118;
+      color: var(--text);
+    }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.45rem 0.35rem; border-bottom: 1px solid #2a3545; }
+    th { color: var(--muted); font-weight: 500; }
+    .flag { color: var(--danger); font-size: 0.8rem; }
+    .notify {
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      background: #2a2210;
+      border: 1px solid var(--warn);
+      color: #ffe6a8;
+      margin-bottom: 1rem;
+    }
+    code { font-size: 0.8rem; color: #9ddfd9; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <div class="header-brand">
+      <span class="header-title">MLOps Customer Segmentation</span>
+      <span class="header-authors">Зверева Ульяна, Коркина Елизавета (подгруппа 1)</span>
+    </div>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/ui/inference">Пользователь</a>
+      <a href="/ui/predictions">Предсказания</a>
+      <a href="/ui/experiments">Эксперименты</a>
+      <a href="/ui/drift">Дрейф</a>
+      <a href="/docs">OpenAPI</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Главная — MLOps{% endblock %}
+{% block content %}
+  <div id="drift-banner" class="notify" style="display:none;margin-bottom:1rem;" role="status"></div>
+  <div class="card">
+    <h1>Панель сервиса</h1>
+    <p>
+      <button type="button" id="btn-retrain">Запустить переобучение</button>
+      <button type="button" class="secondary" id="btn-drift" style="margin-left:0.5rem;">Пересчитать дрейф</button>
+    </p>
+    <p id="action-msg" style="color:var(--muted); font-size:0.9rem;"></p>
+  </div>
+
+  <div class="card" id="metrics">
+    <h2 style="font-size:1.25rem;margin:0 0 0.35rem;letter-spacing:0.02em;">Метрики</h2>
+    <p id="dash-updated" style="font-size:0.85rem;color:var(--muted);margin:0 0 1rem;"></p>
+  </div>
+  {% include "partials/metrics_dashboard_embed.html" %}
+
+  <script>
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+    async function refreshDriftBanner() {
+      const el = document.getElementById('drift-banner');
+      if (!el) return;
+      try {
+        const r = await fetch('/api/v1/drift/latest', { cache: 'no-store' });
+        const j = await r.json();
+        const flags = j.anomaly_flags;
+        if (!Array.isArray(flags) || !flags.length) {
+          el.style.display = 'none';
+          el.innerHTML = '';
+          return;
+        }
+        const max = 10;
+        const head = flags.slice(0, max);
+        const more = flags.length - max;
+        let body = head.map((f) => '<div style="margin:0.2rem 0;">' + escapeHtml(f) + '</div>').join('');
+        if (more > 0) {
+          body += '<div style="margin-top:0.35rem;color:var(--muted);font-size:0.88rem;">… и ещё ' + more + '</div>';
+        }
+        el.innerHTML =
+          '<strong>Обнаружен дрейф</strong> (последний отчёт' +
+          (j.timestamp_utc ? ', ' + escapeHtml(j.timestamp_utc) : '') +
+          ')' +
+          '<div style="margin-top:0.5rem;">' +
+          body +
+          '</div>' +
+          '<div style="margin-top:0.65rem;"><a href="/ui/drift" style="color:var(--accent);">Страница «Дрейф»</a></div>';
+        el.style.display = 'block';
+      } catch (e) {
+        el.style.display = 'none';
+        el.innerHTML = '';
+      }
+    }
+
+    refreshDriftBanner();
+
+    document.getElementById('btn-retrain').onclick = async () => {
+      const msg = document.getElementById('action-msg');
+      msg.textContent = 'Запуск...';
+      const r = await fetch('/api/v1/retrain', { method: 'POST' });
+      const j = await r.json();
+      msg.textContent = j.detail || j.status;
+    };
+    document.getElementById('btn-drift').onclick = async () => {
+      const msg = document.getElementById('action-msg');
+      msg.textContent = 'Расчёт дрейфа...';
+      const r = await fetch('/api/v1/drift/run', { method: 'POST' });
+      const j = await r.json();
+      let t = (j.flags && j.flags.length) ? ('Флаги: ' + j.flags.join(', ')) : (j.detail || j.status);
+      if (j.auto_retrain_triggered) t += ' · Автопереобучение поставлено в очередь.';
+      msg.textContent = t;
+      await refreshDriftBanner();
+    };
+  </script>
+{% endblock %}

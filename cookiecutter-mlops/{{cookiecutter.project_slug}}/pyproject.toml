@@ -1,0 +1,14 @@
+[project]
+name = "{{ cookiecutter.project_slug | replace('_', '-') }}"
+version = "0.1.0"
+description = "{{ cookiecutter.project_title }}"
+readme = "README.md"
+requires-python = ">={{ cookiecutter.python_version }}"
+dependencies = [
+  "fastapi>=0.109.0",
+  "uvicorn[standard]>=0.27.0",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

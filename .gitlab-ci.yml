@@ -1,0 +1,73 @@
+# GitLab: MR — линтер, тесты, сборка; main — публикация в Container Registry + опционально kubectl.
+stages: [lint, test, build, publish, deploy]
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: tcp://docker:2375
+
+cache:
+  paths: [.cache/pip]
+
+lint:
+  stage: lint
+  image: python:3.11-slim
+  before_script:
+    - pip install -e ".[dev]"
+  script:
+    - ruff check src tests
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+test:
+  stage: test
+  image: python:3.11-slim
+  before_script:
+    - pip install -e ".[dev]"
+  script:
+    - python -m segmentation_mlops.data.make_dataset
+    - python -m segmentation_mlops.train.train_model
+    - pytest -q
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+docker_build:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - until docker info; do sleep 1; done
+  script:
+    - docker build -t segmentation-mlops:ci .
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+publish_image:
+  stage: publish
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - until docker info; do sleep 1; done
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" -t "$CI_REGISTRY_IMAGE:latest" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+deploy_k8s:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - mkdir -p ~/.kube
+    - echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config
+    - kubectl set image deployment/segmentation-api api="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" -n segmentation-mlops --record
+    - kubectl rollout status deployment/segmentation-api -n segmentation-mlops --timeout=180s
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $K8S_DEPLOY == "true"
+  needs: ["publish_image"]

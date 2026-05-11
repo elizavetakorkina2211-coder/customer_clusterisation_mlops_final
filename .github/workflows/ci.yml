@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check src tests
+
+      - name: Prepare data and train (smoke)
+        run: |
+          python -m segmentation_mlops.data.make_dataset
+          python -m segmentation_mlops.train.train_model
+
+      - name: Pytest
+        run: pytest -q
+
+      - name: Docker build (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: segmentation-mlops:ci
+
+      - name: DVC sanity (optional)
+        run: |
+          pip install dvc
+          git config user.email "ci@example.com"
+          git config user.name "CI"
+          dvc init --no-scm -f || true
+          dvc repro prepare train || true
+        continue-on-error: true

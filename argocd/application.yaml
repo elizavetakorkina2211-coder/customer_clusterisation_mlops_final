@@ -1,0 +1,21 @@
+# Пример Argo CD Application (замените repoURL и targetRevision на ваш Git).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: segmentation-mlops
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR_ORG/segmentation-mlops.git
+    targetRevision: main
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: segmentation-mlops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

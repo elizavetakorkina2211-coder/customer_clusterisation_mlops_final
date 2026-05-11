@@ -1,0 +1,243 @@
+  <div class="card">
+    <h2 style="font-size:1.05rem;margin:0 0 1rem;">Качество модели (последнее обучение)</h2>
+    <p id="dash-quality-empty" style="color:var(--muted);">Нет файла <code>reports/metrics.json</code> — выполните обучение.</p>
+    <div id="dash-quality" style="display:none;">
+      <table class="dash-table">
+        <tbody id="dash-quality-body"></tbody>
+      </table>
+      <div id="dash-cm-wrap" style="display:none;margin-top:1.25rem;">
+        <h3 style="font-size:0.95rem;margin:0 0 0.35rem;">Матрица ошибок (тестовая выборка)</h3>
+        <div id="dash-cm-host"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:1.05rem;margin:0 0 1rem;">Сервис и бизнес</h2>
+    <div class="dash-grid" id="dash-cards"></div>
+  </div>
+
+  <div class="card" id="dash-hist-wrap" style="display:none;">
+    <h2 style="font-size:1.05rem;margin:0 0 1rem;">Латентность инференса (гистограмма)</h2>
+    <div id="dash-histogram"></div>
+  </div>
+
+  <style>
+    .dash-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .dash-stat {
+      background: #121a24;
+      border: 1px solid #2a3545;
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+    }
+    .dash-stat .k { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .dash-stat .v { font-size: 1.45rem; font-weight: 700; color: var(--accent); margin-top: 0.35rem; }
+    .dash-stat .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; }
+    .dash-hbar { margin-bottom: 0.5rem; }
+    .dash-hbar .row { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.15rem; }
+    .dash-hbar .track { height: 10px; background: #243044; border-radius: 5px; overflow: hidden; }
+    .dash-hbar .fill { height: 100%; background: linear-gradient(90deg, #f0b429, #3dd6c6); border-radius: 5px; }
+    .dash-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .dash-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #2a3545; }
+    .dash-table td:first-child { color: var(--muted); width: 45%; }
+    .cm-table { border-collapse: collapse; font-size: 0.85rem; width: 100%; max-width: 42rem; }
+    .cm-table th, .cm-table td { border: 1px solid #2a3545; padding: 0.45rem 0.65rem; text-align: center; }
+    .cm-table thead th { color: var(--muted); font-weight: 600; font-size: 0.78rem; }
+    .cm-table tbody th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.78rem; }
+  </style>
+
+  <script>
+    (function () {
+    const RU = {
+      mlops_prediction_requests_total: 'Запросы инференса',
+      mlops_model_loaded: 'Модель загружена',
+      mlops_drift_anomaly_flags: 'Флаги дрейфа (последний расчёт)',
+      mlops_business_whale_share_window: 'Доля «китов» в окне предсказаний',
+      mlops_prediction_latency_seconds: 'Латентность',
+      ok: 'успешно',
+      error: 'ошибка',
+      accuracy: 'Точность',
+      f1_weighted: 'F1 (weighted)',
+      f1_whales: 'F1 (киты)',
+      log_loss: 'Log loss',
+    };
+
+    const SEG_RU = {
+      whales: 'Киты',
+      loyal: 'Лояльные',
+      casual: 'Обычные',
+    };
+    function labelRu(x) {
+      return SEG_RU[x] || x;
+    }
+
+    function fmt(v) {
+      if (v === undefined || v === null || Number.isNaN(v)) return '—';
+      if (typeof v === 'number') {
+        if (Math.abs(v) < 0.001 && v !== 0) return v.toExponential(2);
+        if (Number.isInteger(v)) return String(v);
+        return v.toFixed(4).replace(/\.?0+$/, '');
+      }
+      return String(v);
+    }
+
+    function predictionRequestCounts(snap) {
+      const raw = snap.counters || {};
+      const c =
+        raw['mlops_prediction_requests_total'] ||
+        raw['mlops_prediction_requests'] ||
+        {};
+      return { ok: c.ok ?? 0, err: c.error ?? 0 };
+    }
+
+    function renderCards(snap) {
+      const g = snap.gauges || {};
+      const { ok, err } = predictionRequestCounts(snap);
+      const cards = [
+        { k: 'Запросы: успешно', v: ok, sub: null },
+        { k: 'Запросы: ошибка', v: err, sub: err > 0 ? 'проверьте логи' : null },
+        {
+          k: 'Флаги дрейфа',
+          v: fmt(g['mlops_drift_anomaly_flags']),
+          sub: 'число после «Пересчитать дрейф»',
+        },
+        { k: 'Доля китов (окно)', v: pct01(g['mlops_business_whale_share_window']), sub: null },
+      ];
+      const el = document.getElementById('dash-cards');
+      if (!el) return;
+      el.innerHTML = cards.map(x => (
+        '<div class="dash-stat"><div class="k">' + x.k + '</div><div class="v">' + x.v + '</div>' +
+        (x.sub ? '<div class="sub">' + x.sub + '</div>' : '') + '</div>'
+      )).join('');
+    }
+
+    function pct01(x) {
+      if (x === undefined || x === null) return '—';
+      return (Number(x) * 100).toFixed(1).replace('.', ',') + '%';
+    }
+
+    function renderHistogram(snap) {
+      const h = snap.histograms && snap.histograms['mlops_prediction_latency_seconds'];
+      const wrap = document.getElementById('dash-hist-wrap');
+      const host = document.getElementById('dash-histogram');
+      if (!wrap || !host) return;
+      if (!h || !h.buckets || !h.buckets.length) {
+        wrap.style.display = 'none';
+        return;
+      }
+      wrap.style.display = 'block';
+      const buckets = h.buckets.slice();
+      let prev = 0;
+      const rows = buckets.map(b => {
+        const inc = Math.max(0, b.cumulative - prev);
+        prev = b.cumulative;
+        return { le: b.le === '+Inf' ? '∞' : b.le, inc };
+      });
+      const maxI = Math.max(...rows.map(r => r.inc), 1e-9);
+      host.innerHTML = rows.map(r => {
+        const w = Math.min(100, (r.inc / maxI) * 100);
+        return '<div class="dash-hbar"><div class="row"><span>≤ ' + r.le + ' с</span><span>' + fmt(r.inc) + ' запр.</span></div>' +
+          '<div class="track"><div class="fill" style="width:' + w + '%"></div></div></div>';
+      }).join('');
+      host.innerHTML += '<p style="margin-top:0.75rem;font-size:0.85rem;color:var(--muted);">Всего запросов: <strong>' +
+        fmt(h.count) + '</strong> · сумма времени: <strong>' + fmt(h.sum) + '</strong> с · среднее: <strong>' +
+        (h.count > 0 ? fmt(h.sum / h.count) : '—') + '</strong> с</p>';
+    }
+
+    function renderConfusionMatrix(data) {
+      const wrap = document.getElementById('dash-cm-wrap');
+      const host = document.getElementById('dash-cm-host');
+      if (!wrap || !host) return;
+      const cm = data && data.confusion_matrix;
+      if (!cm || !cm.matrix || !cm.labels || !cm.matrix.length) {
+        wrap.style.display = 'none';
+        host.innerHTML = '';
+        return;
+      }
+      wrap.style.display = 'block';
+      const labels = cm.labels;
+      const mat = cm.matrix;
+      let maxV = 0;
+      for (let i = 0; i < mat.length; i++) {
+        for (let j = 0; j < mat[i].length; j++) {
+          maxV = Math.max(maxV, mat[i][j]);
+        }
+      }
+      function cellBg(v) {
+        if (maxV <= 0) return '#121a24';
+        const t = v / maxV;
+        const a = 0.12 + 0.5 * t;
+        return 'rgba(42, 212, 194, ' + a + ')';
+      }
+      let html = '<table class="cm-table"><thead><tr><th></th>';
+      for (let j = 0; j < labels.length; j++) {
+        html += '<th>Предск.: ' + labelRu(labels[j]) + '</th>';
+      }
+      html += '</tr></thead><tbody>';
+      for (let i = 0; i < mat.length; i++) {
+        html += '<tr><th scope="row">Истина: ' + labelRu(labels[i]) + '</th>';
+        for (let j = 0; j < mat[i].length; j++) {
+          const v = mat[i][j];
+          html += '<td style="background:' + cellBg(v) + '"><strong>' + v + '</strong></td>';
+        }
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      host.innerHTML = html;
+    }
+
+    function renderQuality(data) {
+      const empty = document.getElementById('dash-quality-empty');
+      const box = document.getElementById('dash-quality');
+      const body = document.getElementById('dash-quality-body');
+      if (!empty || !box || !body) return;
+      if (!data || Object.keys(data).length === 0) {
+        empty.style.display = 'block';
+        box.style.display = 'none';
+        return;
+      }
+      const scalarRows = Object.entries(data).filter(([key]) => key !== 'confusion_matrix');
+      if (scalarRows.length === 0) {
+        empty.style.display = 'block';
+        box.style.display = 'none';
+        return;
+      }
+      empty.style.display = 'none';
+      box.style.display = 'block';
+      body.innerHTML = scalarRows.map(([key, val]) =>
+        '<tr><td>' + (RU[key] || key) + '</td><td><strong>' + fmt(val) + '</strong></td></tr>'
+      ).join('');
+      renderConfusionMatrix(data);
+    }
+
+    let dashInterval = null;
+    async function refresh() {
+      const tsEl = document.getElementById('dash-updated');
+      if (!tsEl) return;
+      try {
+        const [snap, qual] = await Promise.all([
+          fetch('/api/v1/metrics/snapshot').then(r => r.json()),
+          fetch('/api/v1/reports/training-metrics').then(r => r.json()),
+        ]);
+        tsEl.textContent =
+          'Обновлено: ' + (snap.updated_at_utc || '?').replace('T', ' ').replace('+00:00', ' UTC');
+        renderQuality(qual);
+        renderCards(snap);
+        renderHistogram(snap);
+      } catch (e) {
+        tsEl.textContent = 'Ошибка загрузки: ' + e;
+      }
+    }
+
+    function startDashRefresh() {
+      if (dashInterval) clearInterval(dashInterval);
+      refresh();
+      dashInterval = setInterval(refresh, 5000);
+    }
+    startDashRefresh();
+    })();
+  </script>
