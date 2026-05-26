@@ -38,11 +38,12 @@ jobs:
           push: false
           tags: segmentation-mlops:ci
 
-      - name: DVC sanity (optional)
+      - name: DVC pull
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
         run: |
-          pip install dvc
-          git config user.email "ci@example.com"
-          git config user.name "CI"
-          dvc init --no-scm -f || true
-          dvc repro prepare train || true
+          pip install dvc dvc-s3
+          dvc remote modify yandex-storage endpointurl https://storage.yandexcloud.net
+          dvc pull || true
         continue-on-error: true
