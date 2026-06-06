@@ -15,15 +15,17 @@ spec:
       labels:
         app: segmentation-api
     spec:
+      # imagePullSecrets:
+      #   - name: ghcr-creds
       containers:
         - name: api
-          image: segmentation-mlops:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/elizavetakorkina2211-coder/customer_clusterisation_mlops_final:main
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           env:
             - name: MLFLOW_TRACKING_URI
-              value: "http://mlflow.segmentation-mlops.svc.cluster.local:5000"
+              value: "file:/app/mlruns"
           readinessProbe:
             httpGet:
               path: /docs
