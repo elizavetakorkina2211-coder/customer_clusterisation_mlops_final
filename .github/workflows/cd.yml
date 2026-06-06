@@ -1,4 +1,3 @@
-# Публикация образа в GHCR при merge/push в main; опционально — kubectl set image.
 name: CD
 
 on:
