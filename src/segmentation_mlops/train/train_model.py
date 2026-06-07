@@ -20,7 +20,7 @@ from segmentation_mlops.constants import EXCLUDE_FROM_MODEL
 from segmentation_mlops.features.build_features import build_features
 from segmentation_mlops.metrics import calculate_metrics, confusion_matrix_payload
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(os.getenv("MLOPS_ROOT") or Path(__file__).resolve().parents[3])
 MODELS = ROOT / "models"
 REPORTS = ROOT / "reports"
 
