@@ -35,6 +35,7 @@ spec:
             - server
             - --host=0.0.0.0
             - --port=5000
+            - --workers=1
             - --backend-store-uri=sqlite:////data/mlflow.db
             - --default-artifact-root=/data/artifacts
           ports:
@@ -51,10 +52,10 @@ spec:
           resources:
             requests:
               cpu: "100m"
-              memory: "256Mi"
+              memory: "512Mi"
             limits:
               cpu: "500m"
-              memory: "512Mi"
+              memory: "1Gi"
       volumes:
         - name: data
           persistentVolumeClaim:
