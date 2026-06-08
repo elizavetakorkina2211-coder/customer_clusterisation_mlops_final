@@ -24,14 +24,17 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from segmentation_mlops.api import metrics_prom as prom
 from segmentation_mlops.api.experiments_display import format_mlflow_run_for_ui
-from segmentation_mlops.api.user_sampling import build_user_sampling_config, sample_random_profile_from_csv
 from segmentation_mlops.api.metrics_collect import collect_mlops_snapshot
 from segmentation_mlops.api.schemas import DriftRunOut, PredictIn, PredictOut, RetrainOut
+from segmentation_mlops.api.user_sampling import (
+    build_user_sampling_config,
+    sample_random_profile_from_csv,
+)
 from segmentation_mlops.config import get_settings
 from segmentation_mlops.drift.analyzer import build_full_report, load_reference
 from segmentation_mlops.drift.flag_display import humanize_drift_flags
-from segmentation_mlops.drift.prediction_flags import compute_prediction_flags
 from segmentation_mlops.drift.labels import categorical_value_ru, feature_ru, feature_title_ru
+from segmentation_mlops.drift.prediction_flags import compute_prediction_flags
 from segmentation_mlops.features.build_features import build_features
 from segmentation_mlops.store.db import (
     clear_all_predictions,

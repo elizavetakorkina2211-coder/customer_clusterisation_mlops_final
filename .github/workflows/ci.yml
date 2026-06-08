@@ -24,6 +24,8 @@ jobs:
         run: ruff check src tests
 
       - name: Prepare data and train (smoke)
+        env:
+          MLFLOW_ALLOW_FILE_STORE: "true"
         run: |
           python -m segmentation_mlops.data.make_dataset
           python -m segmentation_mlops.train.train_model
