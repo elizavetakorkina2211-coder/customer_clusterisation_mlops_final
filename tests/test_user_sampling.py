@@ -3,7 +3,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from segmentation_mlops.api.user_sampling import build_user_sampling_config, sample_random_profile_from_csv
+from segmentation_mlops.api.user_sampling import (
+    build_user_sampling_config,
+    sample_random_profile_from_csv,
+)
 
 
 def test_build_user_sampling_from_csv(tmp_path: Path):
