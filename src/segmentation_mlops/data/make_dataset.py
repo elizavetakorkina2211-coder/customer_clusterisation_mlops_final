@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 from pathlib import Path
 
@@ -12,7 +13,7 @@ import pandas as pd
 from segmentation_mlops.constants import EVENT_TS_COL
 from segmentation_mlops.features.build_features import build_features
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(os.getenv("MLOPS_ROOT") or Path(__file__).resolve().parents[3])
 RAW = ROOT / "data" / "raw"
 PROC = ROOT / "data" / "processed"
 REPORTS = ROOT / "reports"

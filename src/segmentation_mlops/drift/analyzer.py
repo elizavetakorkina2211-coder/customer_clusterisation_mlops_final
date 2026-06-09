@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,7 +16,7 @@ from segmentation_mlops.constants import EVENT_TS_COL
 from segmentation_mlops.drift.labels import feature_ru
 from segmentation_mlops.features.build_features import build_features
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(os.getenv("MLOPS_ROOT") or Path(__file__).resolve().parents[3])
 DRIFT_REPORTS = ROOT / "reports" / "drift"
 
 
