@@ -26,6 +26,10 @@ spec:
           env:
             - name: MLFLOW_TRACKING_URI
               value: "http://mlflow.segmentation-mlops.svc.cluster.local:5000"
+            - name: MLOPS_MLFLOW_TRACKING_URI
+              value: "http://mlflow.segmentation-mlops.svc.cluster.local:5000"
+            - name: MLOPS_MLFLOW_TRACKING_URI
+              value: "http://mlflow.segmentation-mlops.svc.cluster.local:5000"
             - name: MLOPS_ROOT
               value: "/app"
           readinessProbe:
