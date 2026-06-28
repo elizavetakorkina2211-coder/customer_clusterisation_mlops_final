@@ -15,11 +15,9 @@ spec:
       labels:
         app: segmentation-api
     spec:
-      # imagePullSecrets:
-      #   - name: ghcr-creds
       containers:
         - name: api
-          image: ghcr.io/elizavetakorkina2211-coder/customer_clusterisation_mlops_final:main
+          image: ghcr.io/elizavetakorkina2211-coder/customer_clusterisation_mlops_final:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -28,10 +26,13 @@ spec:
               value: "http://mlflow.segmentation-mlops.svc.cluster.local:5000"
             - name: MLOPS_MLFLOW_TRACKING_URI
               value: "http://mlflow.segmentation-mlops.svc.cluster.local:5000"
-            - name: MLOPS_MLFLOW_TRACKING_URI
-              value: "http://mlflow.segmentation-mlops.svc.cluster.local:5000"
             - name: MLOPS_ROOT
               value: "/app"
+            - name: MLOPS_DB_PATH
+              value: "/data/predictions.db"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /data
           readinessProbe:
             httpGet:
               path: /docs
@@ -51,3 +52,7 @@ spec:
             limits:
               cpu: "1"
               memory: "1Gi"
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: segmentation-db-pvc
