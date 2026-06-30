@@ -46,42 +46,15 @@ jobs:
             ${{ env.IMAGE_BASE }}:main
             ${{ env.IMAGE_BASE }}:${{ github.sha }}
 
-  deploy-skipped:
+  update-manifest:
     needs: publish
-    if: vars.K8S_DEPLOY != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Explain skip
-        run: |
-          echo "::warning::Deploy job skipped because repository variable K8S_DEPLOY is not set to 'true' (current value: '${{ vars.K8S_DEPLOY }}')."
-          echo "To enable automatic deployment, set K8S_DEPLOY=true in Settings -> Secrets and variables -> Actions -> Variables."
-
-  deploy:
-    needs: publish
-    if: vars.K8S_DEPLOY == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
 
-      - uses: azure/setup-kubectl@v4
-        with:
-          version: v1.29.0
-
-      - name: Kubeconfig
-        env:
-          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
-        run: |
-          mkdir -p ~/.kube
-          echo "$KUBE_CONFIG_B64" | base64 -d > ~/.kube/config
-
-      - name: Rollout image
-        run: |
-          kubectl set image deployment/segmentation-api api="${{ needs.publish.outputs.image }}" -n segmentation-mlops --record
-          kubectl rollout status deployment/segmentation-api -n segmentation-mlops --timeout=180s
-
-      - name: Update manifest with deployed image
+      - name: Update manifest with new image tag
         run: |
           sed -i "s|image: ${{ needs.publish.outputs.image_base }}:.*|image: ${{ needs.publish.outputs.image }}|" k8s/deployment.yaml
           if git diff --quiet -- k8s/deployment.yaml; then
