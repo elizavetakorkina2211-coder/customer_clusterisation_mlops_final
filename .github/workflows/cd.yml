@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.coords.outputs.image }}
+      image_base: ${{ steps.coords.outputs.image_base }}
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +26,7 @@ jobs:
           LOWER="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
           echo "IMAGE_BASE=${{ env.REGISTRY }}/$LOWER" >> "$GITHUB_ENV"
           echo "image=${{ env.REGISTRY }}/$LOWER:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "image_base=${{ env.REGISTRY }}/$LOWER" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -44,11 +46,25 @@ jobs:
             ${{ env.IMAGE_BASE }}:main
             ${{ env.IMAGE_BASE }}:${{ github.sha }}
 
+  deploy-skipped:
+    needs: publish
+    if: vars.K8S_DEPLOY != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain skip
+        run: |
+          echo "::warning::Deploy job skipped because repository variable K8S_DEPLOY is not set to 'true' (current value: '${{ vars.K8S_DEPLOY }}')."
+          echo "To enable automatic deployment, set K8S_DEPLOY=true in Settings -> Secrets and variables -> Actions -> Variables."
+
   deploy:
     needs: publish
     if: vars.K8S_DEPLOY == 'true'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
       - uses: azure/setup-kubectl@v4
         with:
           version: v1.29.0
@@ -64,3 +80,16 @@ jobs:
         run: |
           kubectl set image deployment/segmentation-api api="${{ needs.publish.outputs.image }}" -n segmentation-mlops --record
           kubectl rollout status deployment/segmentation-api -n segmentation-mlops --timeout=180s
+
+      - name: Update manifest with deployed image
+        run: |
+          sed -i "s|image: ${{ needs.publish.outputs.image_base }}:.*|image: ${{ needs.publish.outputs.image }}|" k8s/deployment.yaml
+          if git diff --quiet -- k8s/deployment.yaml; then
+            echo "No manifest changes to commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add k8s/deployment.yaml
+            git commit -m "chore(cd): update segmentation-api image to ${{ github.sha }} [skip ci]"
+            git push origin HEAD:main
+          fi
