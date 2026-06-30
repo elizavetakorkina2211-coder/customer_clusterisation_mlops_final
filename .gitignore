@@ -29,3 +29,6 @@ reports/drift/drift_evidently_*.html
 .idea/
 .vscode/
 pyproject_temp.toml
+
+/data/raw/customers_raw.csv
+/data/processed/reference_profile.json
