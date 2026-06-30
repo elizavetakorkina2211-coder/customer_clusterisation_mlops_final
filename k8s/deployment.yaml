@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/elizavetakorkina2211-coder/customer_clusterisation_mlops_final:06103d0de1e37eeae0721ef11920ba66de3f6033
+          image: ghcr.io/elizavetakorkina2211-coder/customer_clusterisation_mlops_final:cbb7661e691a290c80e73983a4dcb4ff2f2c547d
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
