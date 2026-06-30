@@ -16,7 +16,13 @@ stages:
       - src/segmentation_mlops/features/build_features.py
       - src/segmentation_mlops/metrics.py
     params:
-      - params.yaml
+      - train.test_size
+      - train.random_state
+      - train.max_iter
+      - train.max_depth
+      - train.learning_rate
+      - train.l2_regularization
+      - train.min_samples_leaf
     outs:
       - models/model.joblib
     metrics:

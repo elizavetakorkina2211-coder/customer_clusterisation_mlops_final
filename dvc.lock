@@ -1,0 +1,59 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python -m segmentation_mlops.data.make_dataset
+    deps:
+    - path: src/segmentation_mlops/data/make_dataset.py
+      hash: md5
+      md5: 60adb0f7fe2af094fe6e70a4bde2374b
+      size: 6099
+    - path: src/segmentation_mlops/features/build_features.py
+      hash: md5
+      md5: ef3d2aed55c9c1d8fc0dbdb956164d7a
+      size: 1402
+    outs:
+    - path: data/processed/reference_profile.json
+      hash: md5
+      md5: aa88b41752bad7d31eac9277237a449c
+      size: 2395
+    - path: data/raw/customers_raw.csv
+      hash: md5
+      md5: 05d41f5af08825bff0f4546e9cd40396
+      size: 1473094
+  train:
+    cmd: python -m segmentation_mlops.train.train_model
+    deps:
+    - path: data/raw/customers_raw.csv
+      hash: md5
+      md5: 05d41f5af08825bff0f4546e9cd40396
+      size: 1473094
+    - path: src/segmentation_mlops/features/build_features.py
+      hash: md5
+      md5: ef3d2aed55c9c1d8fc0dbdb956164d7a
+      size: 1402
+    - path: src/segmentation_mlops/metrics.py
+      hash: md5
+      md5: 166138f820d241217fe5bbba095e3b6c
+      size: 851
+    - path: src/segmentation_mlops/train/train_model.py
+      hash: md5
+      md5: 93ea86871a7190130dbb8696128acbf6
+      size: 6080
+    params:
+      params.yaml:
+        train.l2_regularization: 0.08
+        train.learning_rate: 0.028
+        train.max_depth: 24
+        train.max_iter: 900
+        train.min_samples_leaf: 4
+        train.random_state: 22
+        train.test_size: 0.2
+    outs:
+    - path: models/model.joblib
+      hash: md5
+      md5: 8f44f2a3027d87afe7cf977aa53b5d77
+      size: 1481778
+    - path: reports/metrics.json
+      hash: md5
+      md5: 5efa3f0beb2bbba5941c9029b73e2bfd
+      size: 404
